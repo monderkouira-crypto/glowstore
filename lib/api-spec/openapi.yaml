@@ -1,0 +1,614 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: orders
+    description: Store orders
+  - name: products
+    description: Store product catalog
+  - name: Auth
+    description: Browser and mobile authentication endpoints.
+  - name: Storage
+    description: Object storage upload and serving endpoints.
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /orders:
+    get:
+      operationId: listOrders
+      tags: [orders]
+      summary: List saved orders
+      responses:
+        "200":
+          description: Saved orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Order"
+    post:
+      operationId: createOrder
+      tags: [orders]
+      summary: Create a cash-on-delivery order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderInput"
+      responses:
+        "201":
+          description: Order saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "429":
+          description: This device has reached its rolling 24-hour order limit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RateLimitError"
+  /products:
+    get:
+      operationId: listProducts
+      tags: [products]
+      summary: List catalog products
+      responses:
+        "200":
+          description: Catalog products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+    post:
+      operationId: createProduct
+      tags: [products]
+      summary: Add a catalog product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductInput"
+      responses:
+        "201":
+          description: Product created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+  /products/{id}:
+    patch:
+      operationId: updateProduct
+      tags: [products]
+      summary: Update a catalog product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductInput"
+      responses:
+        "200":
+          description: Product updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "404":
+          description: Product not found
+    delete:
+      operationId: deleteProduct
+      tags: [products]
+      summary: Delete a catalog product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Product deleted
+        "404":
+          description: Product not found
+  /auth/user:
+    get:
+      tags: [Auth]
+      operationId: getCurrentAuthUser
+      summary: Get the currently authenticated user
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+      responses:
+        "200":
+          description: Auth status resolved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUserEnvelope"
+  /login:
+    get:
+      tags: [Auth]
+      operationId: beginBrowserLogin
+      summary: Start the browser OIDC login flow
+      parameters:
+        - name: returnTo
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect to the login provider.
+  /callback:
+    get:
+      tags: [Auth]
+      operationId: handleBrowserLoginCallback
+      summary: Complete the browser OIDC login flow
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: iss
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect back to the store.
+  /logout:
+    get:
+      tags: [Auth]
+      operationId: logoutBrowserSession
+      summary: Clear the browser session
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+        - $ref: "#/components/parameters/SessionCookie"
+        - name: returnTo
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "302":
+          description: Redirect after logout.
+  /mobile-auth/token-exchange:
+    post:
+      tags: [Auth]
+      operationId: exchangeMobileAuthorizationCode
+      summary: Exchange a mobile authorization code for a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MobileTokenExchangeRequest"
+      responses:
+        "200":
+          description: Session created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MobileTokenExchangeSuccess"
+        "400":
+          description: Invalid request.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Invalid token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Token exchange failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /mobile-auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logoutMobileSession
+      summary: Delete a mobile session token
+      parameters:
+        - $ref: "#/components/parameters/AuthorizationSessionHeader"
+      responses:
+        "200":
+          description: Logout processed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogoutSuccess"
+  /storage/uploads/request-url:
+    post:
+      tags: [Storage]
+      operationId: requestUploadUrl
+      summary: Request a presigned URL for file upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Presigned upload URL generated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResponse"
+        "400":
+          description: Invalid upload metadata.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Failed to generate upload URL.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/uploads:
+    post:
+      tags: [Storage]
+      operationId: uploadImage
+      summary: Upload a product image through the API server
+      requestBody:
+        required: true
+        content:
+          image/*:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "200":
+          description: Image uploaded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadResponse"
+        "400":
+          description: Invalid image file.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Failed to upload image.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/public-objects/{filePath}:
+    get:
+      tags: [Storage]
+      operationId: getPublicObject
+      summary: Serve a public asset
+      parameters:
+        - name: filePath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Public file content.
+        "404":
+          description: File not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Failed to serve public object.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/objects/{objectPath}:
+    get:
+      tags: [Storage]
+      operationId: getStorageObject
+      summary: Serve an uploaded object
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Uploaded file content.
+        "404":
+          description: Object not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Failed to serve object.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+components:
+  parameters:
+    AuthorizationSessionHeader:
+      name: Authorization
+      in: header
+      required: false
+      schema:
+        type: string
+    SessionCookie:
+      name: sid
+      in: cookie
+      required: false
+      schema:
+        type: string
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    OrderItem:
+      type: object
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        price:
+          type: number
+        quantity:
+          type: number
+      required: [id, name, price, quantity]
+    OrderInput:
+      type: object
+      properties:
+        deviceId:
+          type: string
+          minLength: 12
+          maxLength: 100
+        name:
+          type: string
+          minLength: 2
+        phone:
+          type: string
+          minLength: 8
+        wilaya:
+          type: string
+          minLength: 2
+        address:
+          type: string
+          minLength: 3
+        deliveryType:
+          type: string
+          enum: [home, office]
+        deliveryFee:
+          type: number
+          minimum: 0
+        total:
+          type: number
+          minimum: 0
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/OrderItem"
+      required: [deviceId, name, phone, wilaya, address, deliveryType, deliveryFee, total, items]
+    Order:
+      allOf:
+        - $ref: "#/components/schemas/OrderInput"
+        - type: object
+          properties:
+            id:
+              type: number
+            code:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+          required: [id, code, createdAt]
+    RateLimitError:
+      type: object
+      properties:
+        error:
+          type: string
+        retryAfterHours:
+          type: number
+      required: [error, retryAfterHours]
+    Product:
+      type: object
+      properties:
+        id:
+          type: number
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        category:
+          type: string
+        stock:
+          type: number
+        art:
+          type: string
+        image:
+          type: ["string", "null"]
+        featured:
+          type: boolean
+        priceVisible:
+          type: boolean
+        stockVisible:
+          type: boolean
+        promotion:
+          type: ["string", "null"]
+      required: [id, name, description, price, category, stock, art, image, featured, priceVisible, stockVisible, promotion]
+    ProductInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+        price:
+          type: number
+          minimum: 0
+        category:
+          type: string
+          minLength: 1
+        stock:
+          type: number
+          minimum: 0
+        art:
+          type: string
+        image:
+          type: ["string", "null"]
+        featured:
+          type: boolean
+        priceVisible:
+          type: boolean
+        stockVisible:
+          type: boolean
+        promotion:
+          type: ["string", "null"]
+      required: [name, description, price, category, stock, art]
+    ErrorEnvelope:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+    AuthUser:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: ["string", "null"]
+        firstName:
+          type: ["string", "null"]
+        lastName:
+          type: ["string", "null"]
+        profileImageUrl:
+          type: ["string", "null"]
+      required: [id, email, firstName, lastName, profileImageUrl]
+    AuthUserEnvelope:
+      type: object
+      properties:
+        user:
+          oneOf:
+            - $ref: "#/components/schemas/AuthUser"
+            - type: "null"
+      required: [user]
+    MobileTokenExchangeRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          minLength: 1
+        code_verifier:
+          type: string
+          minLength: 1
+        redirect_uri:
+          type: string
+          minLength: 1
+        state:
+          type: string
+          minLength: 1
+        nonce:
+          type: string
+          minLength: 1
+      required: [code, code_verifier, redirect_uri, state]
+    MobileTokenExchangeSuccess:
+      type: object
+      properties:
+        token:
+          type: string
+      required: [token]
+    LogoutSuccess:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: true
+      required: [success]
+    UploadUrlRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        size:
+          type: number
+          minimum: 1
+        contentType:
+          type: string
+          minLength: 1
+      required: [name, size, contentType]
+    UploadUrlResponse:
+      type: object
+      properties:
+        uploadURL:
+          type: string
+        objectPath:
+          type: string
+        metadata:
+          $ref: "#/components/schemas/UploadUrlRequest"
+      required: [uploadURL, objectPath]
+    UploadResponse:
+      type: object
+      properties:
+        objectPath:
+          type: string
+        metadata:
+          $ref: "#/components/schemas/UploadUrlRequest"
+      required: [objectPath, metadata]
+

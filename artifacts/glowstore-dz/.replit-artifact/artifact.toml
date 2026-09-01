@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "GlowStore DZ"
+description = "A responsive Arabic RTL e-commerce landing page for GlowStore_DZ, an Algerian decor and lighting store, with local product, shipping, and store settings management."
+version = "1.0.0"
+id = "artifacts/glowstore-dz"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19800
+
+[services.development]
+run = "pnpm --filter @workspace/glowstore-dz run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/glowstore-dz", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/glowstore-dz/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19800"
+BASE_PATH = "/"
