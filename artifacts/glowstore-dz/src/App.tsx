@@ -137,7 +137,7 @@ function ProductForm({ editing, onCancel, onSaved }: { editing: Product; onCance
 
 function OrdersPanel() {
   const ordersQuery = useListOrders();
-  const orders = ordersQuery.data || [];
+  const orders = Array.isArray(ordersQuery.data) ? ordersQuery.data : [];
   if (ordersQuery.isLoading) return <div className="admin-list"><div className="skeleton" style={{ minHeight: 90 }} /><div className="skeleton" style={{ minHeight: 90 }} /></div>;
   if (ordersQuery.isError) return <div className="notice error" role="alert" data-testid="status-orders-error">تعذر تحميل الطلبات من الخادم. <button className="btn btn-quiet" type="button" onClick={() => ordersQuery.refetch()} data-testid="button-retry-orders">إعادة المحاولة</button></div>;
   return <>{orders.length ? <div className="admin-list">{orders.map((order: Order) => <div className="admin-row" key={order.id} data-testid={`row-admin-order-${order.id}`}><div><strong data-testid={`text-order-customer-${order.id}`}>{order.name} — {order.wilaya}</strong><small>{order.phone} · {order.code} · {order.deliveryType === 'home' ? 'المنزل' : 'المكتب'}</small></div><span className="mono cyan" data-testid={`text-order-total-${order.id}`}>{money(order.total)}</span><PackageCheck size={17} className="muted" /></div>)}</div> : <div className="notice" data-testid="status-empty-orders">لا توجد طلبات محفوظة على الخادم بعد.</div>}</>;
