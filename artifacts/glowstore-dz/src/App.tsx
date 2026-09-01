@@ -164,7 +164,7 @@ function AdminModal({ products, settings, setSettings, onClose }: { products: Pr
 
 function Storefront() {
   const productsQuery = useListProducts();
-  const products = productsQuery.data || [];
+  const products = Array.isArray(productsQuery.data) ? productsQuery.data : [];
   const [cart, setCart] = useState<CartItem[]>([]);
   const [category, setCategory] = useState('الكل');
   const [cartOpen, setCartOpen] = useState(false);
@@ -177,8 +177,8 @@ function Storefront() {
   const clickCount = useRef(0);
   const [settings, setSettings] = useState<StoreSettings>(defaultSettings);
   const clickTimer = useRef<number | undefined>(undefined);
-  const categories = useMemo(() => ['الكل', ...Array.from(new Set((products || []).map(product => product.category)))], [products]);
-  const visible = category === 'الكل' ? (products || []) : (products || []).filter(product => product.category === category);
+  const categories = useMemo(() => ['الكل', ...Array.from(new Set((Array.isArray(products) ? products : []).map(product => product.category)))], [products]);
+  const visible = category === 'الكل' ? (Array.isArray(products) ? products : []) : (Array.isArray(products) ? products : []).filter(product => product.category === category);
   const cartCount = cart.reduce((n, item) => n + item.quantity, 0);
   const add = (product: Product) => { setCart(prev => { const found = prev.find(item => item.id === product.id); return found ? prev.map(item => item.id === product.id ? { ...item, quantity: Math.min(item.quantity + 1, product.stock) } : item) : [...prev, { ...product, quantity: 1 }]; }); setToast('أضيفت القطعة إلى السلة'); window.setTimeout(() => setToast(''), 2200); };
   const changeQuantity = (id: number, delta: number) => setCart(prev => prev.flatMap(item => item.id !== id ? [item] : item.quantity + delta <= 0 ? [] : [{ ...item, quantity: Math.min(item.quantity + delta, item.stock) }]));
