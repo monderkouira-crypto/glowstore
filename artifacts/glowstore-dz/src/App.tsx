@@ -175,6 +175,7 @@ function Storefront() {
   const [lookup, setLookup] = useState('');
   const [lookupResult, setLookupResult] = useState('');
   const clickCount = useRef(0);
+  const [settings, setSettings] = useState<StoreSettings>(defaultSettings);
   const clickTimer = useRef<number | undefined>(undefined);
   const categories = useMemo(() => ['الكل', ...Array.from(new Set((products || []).map(product => product.category)))], [products]);
   const visible = category === 'الكل' ? (products || []) : (products || []).filter(product => product.category === category);
