@@ -30,11 +30,14 @@ const apiErrorMessage = (error: unknown) => {
   if (candidate?.data?.error) return `${candidate.data.error}${candidate.data.retryAfterHours ? ` يمكنك المحاولة بعد ${candidate.data.retryAfterHours} ساعة.` : ''}`;
   return candidate?.message || 'حدث خطأ غير متوقع. حاول مرة أخرى.';
 };
+const API_BASE = 'https://login-auth-api.onrender.com';
+
 const imageUrl = (image: string | null | undefined) => {
   if (!image) return '';
-  if (image.startsWith('/api/storage/')) return image;
-  if (image.startsWith('/objects/')) return `/api/storage${image}`;
-  return image;
+  if (image.startsWith('http://') || image.startsWith('https://')) return image;
+  if (image.startsWith('/api/storage/')) return `${API_BASE}${image}`;
+  if (image.startsWith('/objects/')) return `${API_BASE}/api/storage${image}`;
+  return `${API_BASE}${image.startsWith('/') ? '' : '/'}${image}`;
 };
 
 function ProductVisual({ product, small = false }: { product: Product; small?: boolean }) {
