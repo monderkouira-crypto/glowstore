@@ -1,7 +1,6 @@
 [build]
-  base = "artifacts/glowstore-dz"
-  publish = "dist"
-  command = "npm run build"
+  command = "pnpm --filter @workspace/glowstore-dz... run build"
+  publish = "artifacts/glowstore-dz/dist"
 
 [[redirects]]
   from = "/api/*"
